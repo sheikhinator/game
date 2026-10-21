@@ -8,6 +8,7 @@ var player: Player
 var hud: HUD
 var touch: TouchControls
 var pause_menu: PauseMenu
+var traffic: Traffic
 var _menu_cam: Camera3D
 var _menu_t := 0.0
 
@@ -35,6 +36,9 @@ func _setup_title() -> void:
 	_menu_cam.far = 1200.0
 	add_child(_menu_cam)
 	_menu_cam.current = true
+	traffic = Traffic.new()
+	add_child(traffic)
+	traffic.setup(city, null, 22)
 	var ui := CanvasLayer.new()
 	ui.layer = 5
 	add_child(ui)
@@ -51,6 +55,19 @@ func _setup_play() -> void:
 		player.set_spawn(Vector3(p[0], p[1], p[2]), float(Game.state.player_yaw))
 	else:
 		player.set_spawn(city.spawn_point(), PI * 0.5)
+
+	traffic = Traffic.new()
+	traffic.name = "Traffic"
+	add_child(traffic)
+	traffic.setup(city, player)
+	player.vehicle_changed.connect(_on_vehicle_changed)
+	if "--drive" in OS.get_cmdline_user_args():
+		# Dev preview: a car on the road beside the spawn point.
+		var pc := PropCar.create("sedan_red")
+		traffic.add_child(pc)
+		pc.global_position = city.spawn_point() + Vector3(2.0, 0, -4.7)
+		pc.look_at(pc.global_position + Vector3(1, 0, 0), Vector3.UP, true)
+		player.set_spawn(pc.global_position + Vector3(0, 0, 1.8), player.yaw)
 
 	var ui := CanvasLayer.new()
 	ui.layer = 5
@@ -104,3 +121,13 @@ func _update_menu_cam(t: float) -> void:
 	var pos := c + Vector3(cos(ang) * radius, 46.0, sin(ang) * radius)
 	_menu_cam.global_position = pos
 	_menu_cam.look_at(c + Vector3(0, 12, 0), Vector3.UP)
+
+
+func _on_vehicle_changed(car: Car) -> void:
+	if hud:
+		hud.show_help("Hold the gold pedal to drive, steer with your left thumb. Tap the wheel to get out." if car else "", 6.0 if car else 0.01)
+
+
+func _physics_process(_d: float) -> void:
+	if player and player.vehicle:
+		player.vehicle.set_lights(day_night.is_night())

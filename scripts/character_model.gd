@@ -29,6 +29,9 @@ func setup(appearance: Dictionary) -> void:
 	for mi: MeshInstance3D in body_root.find_children("*", "MeshInstance3D", true, false):
 		_tune_materials(mi)
 	_setup_animation()
+	if skeleton:
+		var stance := LegStance.new()
+		skeleton.add_child(stance)
 	play("Idle")
 
 

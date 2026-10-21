@@ -13,6 +13,8 @@ var _bars: Control
 var _top_right: VBoxContainer
 var _help_timer := 0.0
 var _shown_money := -1.0
+var _speed_label: Label
+var player_ref: Player
 
 const MAP_SIZE := Vector2(400, 250)
 
@@ -42,6 +44,17 @@ func setup(city: CityBuilder, player: Player) -> void:
 	minimap.minimap = true
 	minimap.pixels_per_meter = 1.45
 	_map_frame.add_child(minimap)
+	player_ref = player
+
+	_speed_label = UIKit.label("", 40, UIKit.INK, true, 500, 2)
+	_speed_label.anchor_top = 1.0
+	_speed_label.anchor_bottom = 1.0
+	_speed_label.offset_left = 48 + MAP_SIZE.x + 24
+	_speed_label.offset_right = 48 + MAP_SIZE.x + 300
+	_speed_label.offset_top = -120
+	_speed_label.offset_bottom = -64
+	_speed_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	add_child(_speed_label)
 
 	_bars = Control.new()
 	_bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -93,6 +106,10 @@ func setup(city: CityBuilder, player: Player) -> void:
 
 
 func show_help(t: String, seconds := 6.0) -> void:
+	if t.is_empty():
+		help_box.visible = false
+		_help_timer = 0.0
+		return
 	help_label.text = t
 	help_box.reset_size()
 	help_box.visible = true
@@ -110,6 +127,11 @@ func _apply_visibility() -> void:
 
 func _process(delta: float) -> void:
 	clock_label.text = Game.clock_string(Game.state.time_of_day)
+	if player_ref and player_ref.vehicle:
+		_speed_label.text = "%d KM/H" % int(round(player_ref.vehicle.speed_kmh()))
+		_speed_label.visible = Game.settings.show_hud
+	else:
+		_speed_label.visible = false
 	# Cash counts up/down smoothly like a till.
 	var target := float(Game.state.money)
 	if _shown_money < 0.0:

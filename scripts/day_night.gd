@@ -4,7 +4,8 @@ extends Node3D
 
 var world_env: WorldEnvironment
 var env: Environment
-var sky_mat: ProceduralSkyMaterial
+var sky_mat: ShaderMaterial
+var _cloud_time := 0.0
 var sun: DirectionalLight3D
 var moon: DirectionalLight3D
 var lamps: Array[OmniLight3D] = []
@@ -15,11 +16,8 @@ var _lamps_on := false
 
 
 func _ready() -> void:
-	sky_mat = ProceduralSkyMaterial.new()
-	sky_mat.sky_curve = 0.12
-	sky_mat.ground_curve = 0.05
-	sky_mat.sun_angle_max = 20.0
-	sky_mat.sun_curve = 0.08
+	sky_mat = ShaderMaterial.new()
+	sky_mat.shader = load("res://shaders/sky.gdshader")
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 	sky.radiance_size = Sky.RADIANCE_SIZE_128
@@ -41,7 +39,7 @@ func _ready() -> void:
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_depth_begin = 90.0
 	env.fog_depth_end = 420.0
-	env.fog_sky_affect = 0.35
+	env.fog_sky_affect = 0.06
 	env.adjustment_enabled = true
 	env.adjustment_contrast = 1.06
 	env.adjustment_saturation = 1.08
@@ -103,22 +101,31 @@ func _update_sky(t: float) -> void:
 	moon.light_energy = 0.16 * (1.0 - day)
 	moon.visible = moon.light_energy > 0.01
 
-	var top_day := Color(0.24, 0.45, 0.78)
-	var hor_day := Color(0.66, 0.78, 0.9)
-	var top_night := Color(0.01, 0.02, 0.06)
-	var hor_night := Color(0.05, 0.07, 0.13)
-	var hor_gold := Color(0.98, 0.55, 0.3)
-	sky_mat.sky_top_color = top_night.lerp(top_day, day)
-	sky_mat.sky_horizon_color = hor_night.lerp(hor_day, day).lerp(hor_gold, golden * 0.85)
-	sky_mat.ground_horizon_color = sky_mat.sky_horizon_color.darkened(0.15)
-	sky_mat.ground_bottom_color = Color(0.08, 0.08, 0.09).lerp(Color(0.25, 0.24, 0.23), day)
-	sky_mat.sky_energy_multiplier = lerpf(0.35, 1.0, day)
+	var top_day := Color(0.22, 0.42, 0.76)
+	var hor_day := Color(0.68, 0.78, 0.88)
+	var top_night := Color(0.008, 0.014, 0.04)
+	var hor_night := Color(0.04, 0.055, 0.1)
+	var hor_gold := Color(0.98, 0.56, 0.3)
+	var top_col := top_night.lerp(top_day, day)
+	var hor_col := hor_night.lerp(hor_day, day).lerp(hor_gold, golden * 0.85)
+	sky_mat.set_shader_parameter("top_color", top_col)
+	sky_mat.set_shader_parameter("horizon_color", hor_col)
+	sky_mat.set_shader_parameter("ground_color", Color(0.06, 0.06, 0.07).lerp(Color(0.24, 0.23, 0.22), day))
+	sky_mat.set_shader_parameter("sun_tint", sun.light_color)
+	sky_mat.set_shader_parameter("day", day)
+	sky_mat.set_shader_parameter("energy", lerpf(0.5, 1.0, day))
+	_cloud_time += get_process_delta_time() * (1.0 if not get_tree().paused else 0.0)
+	sky_mat.set_shader_parameter("cloud_time", _cloud_time + Game.state.time_of_day * 30.0)
 	env.ambient_light_energy = lerpf(0.14, 0.9, day)
 	env.ambient_light_color = Color(0.32, 0.33, 0.36).lerp(Color(0.86, 0.84, 0.8), day)
-	env.fog_light_color = sky_mat.sky_horizon_color
+	env.fog_light_color = hor_col
 	env.fog_density = 0.0
 	env.tonemap_exposure = lerpf(1.25, 1.0, day)
 	_lamps_on = elev < 0.08
+
+
+func is_night() -> bool:
+	return _lamps_on
 
 
 func _update_lamps() -> void:

@@ -22,11 +22,23 @@ var look_input := Vector2.ZERO   # accumulated pixels this frame
 var sprint_held := false
 var jump_requested := false
 
+# Driving
+signal vehicle_changed(car: Car)
+var vehicle: Car = null
+var nearby_car: Node3D = null
+var drive_throttle := 0.0
+var drive_handbrake := false
+var _look_timer := 0.0
+var _scan_timer := 0.0
+var _body_shape: CollisionShape3D
+
 var _was_on_floor := true
 var _land_timer := 0.0
 var _last_pos := Vector3.ZERO
 var _dev_cam_dist := 0.0
 var _dev_yaw := INF
+var _dev_drive := false
+var _dev_auto_throttle := false
 
 
 func _ready() -> void:
@@ -41,6 +53,7 @@ func _ready() -> void:
 	cs.shape = cap
 	cs.position.y = 0.9
 	add_child(cs)
+	_body_shape = cs
 
 	model = CharacterModel.new()
 	add_child(model)
@@ -75,6 +88,9 @@ func _ready() -> void:
 			move_input = Vector2(0, -1)
 		elif arg.begins_with("--cam-yaw="):
 			_dev_yaw = float(arg.get_slice("=", 1))
+		elif arg == "--drive":
+			_dev_drive = true
+			_dev_auto_throttle = true
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -84,6 +100,19 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if look_input.length_squared() > 0.0:
+		_look_timer = 1.6
+	_look_timer -= delta
+	if vehicle != null:
+		_drive(delta)
+		return
+	_scan_timer -= delta
+	if _scan_timer <= 0.0:
+		_scan_timer = 0.2
+		nearby_car = _find_car()
+		if _dev_drive and nearby_car:
+			_dev_drive = false
+			enter_vehicle()
 	# --- input
 	var kb := Vector2(
 		Input.get_action_strength("ui_right") - Input.get_action_strength("ui_left"),
@@ -177,6 +206,87 @@ func _update_camera(delta: float) -> void:
 		spring.spring_length = _dev_cam_dist
 		spring.collision_mask = 0
 	camera.fov = lerpf(camera.fov, 62.0 + clampf(speed - 4.0, 0, 4) * 1.5, clampf(3.0 * delta, 0, 1))
+
+
+# ---------------------------------------------------------------- vehicles
+
+func _find_car() -> Node3D:
+	var best: Node3D = null
+	var best_d := 3.6
+	for c in get_tree().get_nodes_in_group("cars") + get_tree().get_nodes_in_group("player_car"):
+		var d := (c as Node3D).global_position.distance_to(global_position)
+		if d < best_d:
+			best_d = d
+			best = c
+	return best
+
+
+func enter_vehicle() -> void:
+	if nearby_car == null or vehicle != null:
+		return
+	var car: Car = nearby_car.make_drivable() if nearby_car is PropCar else nearby_car as Car
+	if car == null:
+		return
+	vehicle = car
+	car.driver = self
+	car.add_to_group("player_car")
+	car.remove_from_group("cars")
+	model.visible = false
+	_body_shape.disabled = true
+	velocity = Vector3.ZERO
+	nearby_car = null
+	pitch = -0.2
+	vehicle_changed.emit(car)
+
+
+func exit_vehicle() -> void:
+	if vehicle == null:
+		return
+	var car := vehicle
+	car.driver = null
+	car.throttle = 0.0
+	car.steer_input = 0.0
+	car.handbrake = false
+	vehicle = null
+	# Step out on the driver's side (car's left, +X when facing +Z).
+	var w: float = car.spec.get("width", 1.8)
+	var out := car.global_transform * Vector3(w * 0.5 + 0.7, 0.0, 0.4)
+	global_position = Vector3(out.x, maxf(out.y, 0.05), out.z)
+	model.visible = true
+	model.rotation.y = atan2(car.global_basis.z.x, car.global_basis.z.z)
+	_body_shape.disabled = false
+	vehicle_changed.emit(null)
+
+
+func _drive(delta: float) -> void:
+	var car := vehicle
+	var steer := -move_input.x
+	steer += float(Input.is_key_pressed(KEY_A)) - float(Input.is_key_pressed(KEY_D))
+	var thr := drive_throttle + float(Input.is_key_pressed(KEY_W)) - float(Input.is_key_pressed(KEY_S))
+	if _dev_auto_throttle:
+		thr = 1.0
+	car.steer_input = clampf(steer, -1, 1)
+	car.throttle = clampf(thr, -1, 1)
+	car.handbrake = drive_handbrake or Input.is_key_pressed(KEY_SPACE)
+	global_position = car.global_position
+	var sens: float = 0.0045 * float(Game.settings.cam_sensitivity)
+	yaw -= look_input.x * sens
+	var inv := -1.0 if Game.settings.invert_y else 1.0
+	pitch = clampf(pitch - look_input.y * sens * inv, -0.9, 0.3)
+	look_input = Vector2.ZERO
+	# Camera swings back behind the car when the player isn't looking around.
+	var fwd := car.global_basis.z
+	var behind_yaw := atan2(-fwd.x, -fwd.z)
+	if _look_timer <= 0.0 and car.linear_velocity.length() > 1.5:
+		yaw = lerp_angle(yaw, behind_yaw, clampf(2.5 * delta, 0, 1))
+		pitch = lerpf(pitch, -0.2, clampf(1.5 * delta, 0, 1))
+	var target := car.global_position + Vector3(0, 1.7, 0)
+	cam_pivot.global_position = cam_pivot.global_position.lerp(target, clampf(10.0 * delta, 0, 1))
+	cam_pivot.rotation = Vector3(pitch, yaw, 0)
+	var spd := car.linear_velocity.length()
+	var L: float = car.spec.get("length", 4.6)
+	spring.spring_length = lerpf(spring.spring_length, L * 1.15 + 1.4 + clampf(spd / 30.0, 0, 1) * 1.2, clampf(3.0 * delta, 0, 1))
+	camera.fov = lerpf(camera.fov, 62.0 + clampf(spd / 35.0, 0, 1) * 10.0, clampf(2.0 * delta, 0, 1))
 
 
 func set_spawn(pos: Vector3, facing: float) -> void:
