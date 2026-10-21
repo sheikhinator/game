@@ -27,7 +27,9 @@ func _ready() -> void:
 
 
 func _setup_title() -> void:
-	day_night.time_scale = 12.0
+	day_night.time_scale = 3.0
+	if not "--time=" in " ".join(OS.get_cmdline_user_args()):
+		Game.state.time_of_day = 17.6
 	_menu_cam = Camera3D.new()
 	_menu_cam.fov = 55.0
 	_menu_cam.far = 1200.0
@@ -68,6 +70,8 @@ func _setup_play() -> void:
 	menu_layer.add_child(pause_menu)
 	pause_menu.setup(city, player)
 	touch.pause_pressed.connect(pause_menu.open_menu)
+	pause_menu.opened.connect(func(): ui.visible = false)
+	pause_menu.closed.connect(func(): ui.visible = true)
 
 
 func _unhandled_input(event: InputEvent) -> void:

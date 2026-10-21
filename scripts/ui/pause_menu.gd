@@ -2,6 +2,9 @@ class_name PauseMenu
 extends Control
 ## Full-screen pause menu with GTA V style tabs: Map, Brief, Stats, Settings, Game.
 
+signal opened
+signal closed
+
 var city: CityBuilder
 var player: Player
 
@@ -23,7 +26,7 @@ func setup(c: CityBuilder, p: Player) -> void:
 	visible = false
 
 	var shade := ColorRect.new()
-	shade.color = Color(0, 0, 0, 0.62)
+	shade.color = Color(0.02, 0.02, 0.03, 0.88)
 	UIKit.full_rect(shade)
 	add_child(shade)
 
@@ -83,6 +86,7 @@ func setup(c: CityBuilder, p: Player) -> void:
 func open_menu() -> void:
 	visible = true
 	get_tree().paused = true
+	opened.emit()
 	_map.center = Vector2(player.global_position.x, player.global_position.z)
 	_refresh()
 
@@ -91,6 +95,7 @@ func close_menu() -> void:
 	visible = false
 	get_tree().paused = false
 	_show_game_list()
+	closed.emit()
 
 
 func show_tab(t: String) -> void:

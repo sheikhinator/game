@@ -63,11 +63,11 @@ func _put(name: String, pos: Vector3, rot_y_deg: float = 0.0, parent: Node = sel
 	parent.add_child(inst)
 	inst.position = pos
 	inst.rotation_degrees.y = rot_y_deg
-	_fix_materials(inst)
+	_fix_materials(inst, name.begins_with("Street"))
 	return inst
 
 
-func _fix_materials(root: Node) -> void:
+func _fix_materials(root: Node, street := false) -> void:
 	# The kit stores wear masks in vertex colours; Godot would tint surfaces red with them.
 	for mi in root.find_children("*", "MeshInstance3D", true, false):
 		var mesh: Mesh = mi.mesh
@@ -78,7 +78,7 @@ func _fix_materials(root: Node) -> void:
 			var mat := mesh.surface_get_material(i) as BaseMaterial3D
 			if mat == null:
 				continue
-			if mat.resource_name == "MI_Asphalt":
+			if street and mat.resource_name == "MI_Asphalt":
 				mesh.surface_set_material(i, _asphalt())
 				continue
 			mat.vertex_color_use_as_albedo = false
