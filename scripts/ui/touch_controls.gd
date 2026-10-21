@@ -30,9 +30,9 @@ func _layout() -> void:
 	var h := size.y
 	var r := 74.0 * s
 	_buttons = {
-		"jump": {"center": Vector2(w - 150 * s, h - 300 * s), "r": r, "label": "JUMP", "held": false, "index": -1},
-		"sprint": {"center": Vector2(w - 330 * s, h - 160 * s), "r": r, "label": "RUN", "held": false, "index": -1},
-		"pause": {"center": Vector2(w - 70 * s, 70 * s), "r": 48 * s, "label": "≡", "held": false, "index": -1},
+		"jump": {"center": Vector2(w - 160 * s, h - 310 * s), "r": r, "held": false, "index": -1},
+		"sprint": {"center": Vector2(w - 330 * s, h - 170 * s), "r": r, "held": false, "index": -1},
+		"pause": {"center": Vector2(w - 96 * s, 84 * s), "r": 44 * s, "held": false, "index": -1},
 	}
 	queue_redraw()
 
@@ -99,21 +99,37 @@ func _on_button(key: String, pressed: bool) -> void:
 
 
 func _draw() -> void:
-	var font := UIKit.heading_font()
-	# Joystick: faint hint when idle, full stick while held.
+	# Joystick: a faint ring when idle, a full glass stick while held.
 	if _stick_index >= 0:
-		draw_circle(_stick_origin, STICK_RADIUS, Color(0, 0, 0, 0.25))
-		draw_arc(_stick_origin, STICK_RADIUS, 0, TAU, 64, Color(1, 1, 1, 0.35), 3.0, true)
-		draw_circle(_stick_pos, 52, Color(1, 1, 1, 0.55))
-	else:
-		var hint := Vector2(230, size.y - 230)
-		draw_arc(hint, STICK_RADIUS, 0, TAU, 64, Color(1, 1, 1, 0.16), 3.0, true)
-		draw_circle(hint, 40, Color(1, 1, 1, 0.12))
+		draw_circle(_stick_origin, STICK_RADIUS, Color(0, 0, 0, 0.18))
+		draw_arc(_stick_origin, STICK_RADIUS, 0, TAU, 96, Color(1, 1, 1, 0.28), 2.0, true)
+		draw_circle(_stick_pos, 50, Color(1, 1, 1, 0.22))
+		draw_arc(_stick_pos, 50, 0, TAU, 64, Color(1, 1, 1, 0.7), 2.5, true)
 	for key in _buttons:
 		var b: Dictionary = _buttons[key]
 		var held: bool = b.held
-		draw_circle(b.center, b.r, Color(1, 1, 1, 0.75) if held else Color(0, 0, 0, 0.35))
-		draw_arc(b.center, b.r, 0, TAU, 64, Color(1, 1, 1, 0.55), 3.0, true)
-		var fs := int(b.r * 0.42) if key != "pause" else int(b.r * 0.9)
-		var ts := font.get_string_size(b.label, HORIZONTAL_ALIGNMENT_CENTER, -1, fs)
-		draw_string(font, b.center + Vector2(-ts.x * 0.5, ts.y * 0.32), b.label, HORIZONTAL_ALIGNMENT_CENTER, -1, fs, Color.BLACK if held else Color.WHITE)
+		var c: Vector2 = b.center
+		var r: float = b.r
+		draw_circle(c, r, Color(1, 1, 1, 0.85) if held else Color(0.02, 0.025, 0.035, 0.38))
+		draw_arc(c, r, 0, TAU, 96, Color(1, 1, 1, 0.45 if not held else 0.0), 2.0, true)
+		var ink := Color(0.05, 0.05, 0.06) if held else Color(1, 1, 1, 0.92)
+		var u := r * 0.32
+		match key:
+			"jump":
+				_chevron(c + Vector2(0, -u * 0.35), u, ink)
+				_chevron(c + Vector2(0, u * 0.55), u, Color(ink, ink.a * 0.45))
+			"sprint":
+				_chevron_right(c + Vector2(-u * 0.45, 0), u, ink)
+				_chevron_right(c + Vector2(u * 0.45, 0), u, ink)
+			"pause":
+				for i in 3:
+					var y := c.y + (i - 1) * u * 0.62
+					draw_line(Vector2(c.x - u * 0.85, y), Vector2(c.x + u * 0.85, y), ink, 3.0, true)
+
+
+func _chevron(c: Vector2, u: float, col: Color) -> void:
+	draw_polyline(PackedVector2Array([c + Vector2(-u, u * 0.5), c + Vector2(0, -u * 0.5), c + Vector2(u, u * 0.5)]), col, 4.0, true)
+
+
+func _chevron_right(c: Vector2, u: float, col: Color) -> void:
+	draw_polyline(PackedVector2Array([c + Vector2(-u * 0.45, -u), c + Vector2(u * 0.45, 0), c + Vector2(-u * 0.45, u)]), col, 4.0, true)

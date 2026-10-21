@@ -82,6 +82,7 @@ func new_state() -> void:
 		"play_time": 0.0,
 		"distance_walked": 0.0,
 		"appearance": {
+			"model": "male_a",
 			"body": "male",
 			"skin": "light",
 			"hair": "Hair_SimpleParted",

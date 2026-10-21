@@ -29,7 +29,7 @@ func _ready() -> void:
 func _setup_title() -> void:
 	day_night.time_scale = 3.0
 	if not "--time=" in " ".join(OS.get_cmdline_user_args()):
-		Game.state.time_of_day = 17.6
+		Game.state.time_of_day = 16.9
 	_menu_cam = Camera3D.new()
 	_menu_cam.fov = 55.0
 	_menu_cam.far = 1200.0

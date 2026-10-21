@@ -10,10 +10,10 @@ var pixels_per_meter := 1.6
 var center := Vector2.ZERO     # world XZ at the middle of the view (full map)
 var heading := 0.0             # camera yaw for the rotating minimap
 
-const BG := Color(0.17, 0.2, 0.18)
-const BLOCK := Color(0.27, 0.29, 0.31)
-const ROAD := Color(0.86, 0.87, 0.89)
-const BUILDING := Color(0.36, 0.38, 0.41)
+const BG := Color(0.105, 0.118, 0.13)
+const BLOCK := Color(0.15, 0.165, 0.18)
+const ROAD := Color(0.47, 0.5, 0.54)
+const BUILDING := Color(0.22, 0.24, 0.265)
 
 var _touches := {}
 
@@ -64,16 +64,22 @@ func _draw() -> void:
 		var out := PackedVector2Array()
 		for q in pts:
 			out.append(xf * q)
+		var shadow := PackedVector2Array()
+		for q in out:
+			shadow.append(q + Vector2(0, 2))
+		draw_colored_polygon(shadow, Color(0, 0, 0, 0.5))
 		draw_colored_polygon(out, Color.WHITE)
-		draw_polyline(out + PackedVector2Array([out[0]]), Color(0, 0, 0, 0.8), 2.0, true)
 
 	if minimap:
 		# North marker on the rim.
-		var n := Vector2(0, -1).rotated(heading) * (minf(size.x, size.y) * 0.5 - 18) + size * 0.5
-		draw_circle(n, 15, Color(0, 0, 0, 0.7))
-		var f := UIKit.heading_font()
-		draw_string(f, n + Vector2(-7, 8), "N", HORIZONTAL_ALIGNMENT_CENTER, -1, 22, Color.WHITE)
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.9), false, 4.0)
+		var dir := Vector2(0, -1).rotated(heading)
+		var half := size * 0.5 - Vector2(20, 20)
+		var k := minf(half.x / maxf(absf(dir.x), 0.001), half.y / maxf(absf(dir.y), 0.001))
+		var n := size * 0.5 + dir * k
+		draw_circle(n, 15, Color(0.03, 0.035, 0.045, 0.85))
+		var f := UIKit.display(600)
+		var ts := f.get_string_size("N", HORIZONTAL_ALIGNMENT_LEFT, -1, 20)
+		draw_string(f, n + Vector2(-ts.x * 0.5, 7), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UIKit.ACCENT)
 
 
 func _gui_input(event: InputEvent) -> void:
