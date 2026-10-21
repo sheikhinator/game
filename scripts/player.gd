@@ -71,6 +71,8 @@ func _ready() -> void:
 			_dev_cam_dist = float(arg.get_slice("=", 1))
 		elif arg.begins_with("--cam-pitch="):
 			pitch = float(arg.get_slice("=", 1))
+		elif arg == "--move":
+			move_input = Vector2(0, -1)
 		elif arg.begins_with("--cam-yaw="):
 			_dev_yaw = float(arg.get_slice("=", 1))
 
